@@ -9,20 +9,20 @@ No build step in your project. No runtime dependency. Open the file, email it,
 or drop it into any static site.
 
 ```sh
-npx skills add <owner>/markdown-html@markdown-html
+npx skills add stevequinn/markdown-html@markdown-html
 ```
 
 ## Install
 
 ```sh
 # globally (user-level, all your projects)
-npx skills add <owner>/markdown-html@markdown-html -g
+npx skills add stevequinn/markdown-html@markdown-html -g
 
 # into one project only
-npx skills add <owner>/markdown-html@markdown-html
+npx skills add stevequinn/markdown-html@markdown-html
 
 # see what's in the repo first
-npx skills add <owner>/markdown-html -l
+npx skills add stevequinn/markdown-html -l
 ```
 
 Add `-y` to skip prompts and `--copy` to copy files rather than symlink them.
