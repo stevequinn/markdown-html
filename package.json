@@ -1,0 +1,25 @@
+{
+  "name": "markdown-html",
+  "version": "1.0.0",
+  "description": "Skill: render a markdown document as a single self-contained HTML page typeset like a bound book.",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test test/smoke.test.mjs",
+    "build": "node markdown-html/scripts/build.mjs"
+  },
+  "keywords": [
+    "agent-skill",
+    "markdown",
+    "html",
+    "typography",
+    "static-site"
+  ],
+  "files": [
+    "markdown-html"
+  ]
+}

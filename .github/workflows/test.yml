@@ -1,0 +1,28 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check every script parses
+        run: |
+          for f in markdown-html/scripts/*.mjs markdown-html/scripts/*.js; do
+            node --check "$f"
+          done
+
+      - name: Build a fixture and assert no warnings
+        run: |
+          node markdown-html/scripts/build.mjs test/fixtures/clean.md -o out.html --strict
+
+      - name: Run the test suite
+        run: npm test

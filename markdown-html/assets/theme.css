@@ -1,0 +1,391 @@
+/* ==========================================================================
+   markdown-html theme
+   A bound field report: one measured prose column, figures that break the
+   measure, a running head, hairlines instead of shadows.
+
+   Self-contained and project-neutral: the defaults are a system font stack and
+   a warm-paper / gold-accent palette that belongs to no one product. Retheme
+   the :root block to whatever the target project already uses.
+
+   RETHEMING: edit the :root token block only. Everything below reads those
+   tokens. See references/retheme.md — in particular, --accent-ink must be a
+   DARKER value than --accent, because --accent is used as a fill and will
+   fail WCAG AA as text. Run scripts/audit.js after any token change.
+   ========================================================================== */
+
+:root {
+  /* --- ground & ink --- */
+  --paper:      oklch(0.985 0.003 90);
+  --stock:      oklch(0.968 0.004 240);   /* cooler stock for inset figures */
+  --ink:        oklch(0.22 0.010 70);
+  --ink-2:      oklch(0.42 0.014 70);     /* secondary prose — needs >= 4.5:1 */
+  --ink-3:      oklch(0.45 0.014 72);     /* labels & captions — needs >= 4.5:1 */
+
+  /* --- rules --- */
+  --rule:       oklch(0.90 0.006 85);
+  --rule-soft:  oklch(0.945 0.005 88);
+  --rule-ink:   oklch(0.22 0.010 70 / 0.72);
+
+  /* --- brand accent -------------------------------------------------
+     --accent is a FILL only (rules, marks, tinted bands). It is too light
+     to be legible as text on --paper. --accent-ink is the text-safe twin. */
+  --accent:      oklch(0.82 0.16 85);
+  --accent-tint: oklch(0.82 0.16 85 / 0.09);
+  --accent-edge: oklch(0.82 0.16 85 / 0.42);
+  --accent-ink:  oklch(0.52 0.115 70);
+
+  /* --- semantic --- */
+  --link:        oklch(0.47 0.10 196);
+  --link-ink:    oklch(0.40 0.10 200);
+  --risk:        oklch(0.50 0.19 27);
+  --risk-tint:   oklch(0.965 0.012 40 / 0.75);
+  --risk-edge:   oklch(0.50 0.19 27 / 0.28);
+  --good:        oklch(0.42 0.10 145);    /* syntax strings */
+  --warn:        oklch(0.47 0.14 40);    /* syntax numbers/literals */
+
+  /* --- type ---
+     Defaults to a system stack so the page is self-contained with zero network
+     requests. `build.mjs` overrides these from the `font` / `fontMono`
+     frontmatter keys when the target project has a real typeface. Whatever you
+     choose, re-measure: see the note on --measure. */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  /* --- measure: 33rem at a 17px body lands at ~65-70 characters.
+     Do NOT express this in `ch` — many grotesks have a wide `0` glyph and
+     `ch` will overstate the line length. Verify with scripts/audit.js. --- */
+  --measure: 33rem;
+  --measure-wide: 44rem;   /* masthead title block */
+  --breakout: 62rem;      /* tables, code figures, notes set wide */
+  --gutter: 2rem;
+
+  --body-size: 1.0625rem;
+  --body-lead: 1.75;
+}
+
+@media (max-width: 639px) { :root { --gutter: 1.25rem; } }
+
+/* ==========================================================================
+   Browser surfaces. These ship with browser defaults that belong to no design
+   system; theming them is the cheapest signal that a page was built.
+   ========================================================================== */
+
+::selection { background: var(--accent); color: var(--ink); }
+
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: var(--paper); }
+::-webkit-scrollbar-thumb { background: var(--rule); border: 3px solid var(--paper); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: oklch(0.80 0.010 82); }
+* { scrollbar-width: thin; scrollbar-color: var(--rule) var(--paper); }
+
+a:focus-visible, button:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 3px;
+  border-radius: 1px;
+}
+
+/* The generated page ships no preflight. Reset the element defaults the
+   renderer actually emits, so UA margins never leak into a box. */
+h1, h2, h3, h4, h5, h6, p, figure, blockquote, dl, dd, ol, ul { margin: 0; }
+ol, ul { padding: 0; }
+img, svg { display: block; max-width: 100%; }
+
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+/* The generated page ships no preflight, so browser link defaults must be
+   reset explicitly. Author styles beat the UA sheet regardless of specificity,
+   so this wins over `a:-webkit-any-link`. Navigation and running-head links
+   carry their own affordance and are NOT underlined; links inside prose are.
+   Keep the prose rule scoped to a container — a bare `li a` or `td a` bleeds
+   into the contents list and turns every entry teal. */
+a { color: inherit; text-decoration: none; }
+.rh-mark, .rh-link, .toc-title, .toc-sub, a.skip { text-decoration: none; }
+.prose-doc a, .note-body a, .toc-sub a, .toc-title a {
+  color: var(--link);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--link) 35%, transparent);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  transition: text-decoration-color 0.15s;
+}
+.rh-mark:hover, .rh-link:hover { color: var(--link); }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+.tnum, table, .fig-code code, .bar-val { font-variant-numeric: tabular-nums; }
+
+/* Responsive visibility helpers. The generated page ships NO Tailwind, so
+   never emit sm:/md:/lg: prefixed classes here — they would be inert. */
+.only-wide   { display: none; }
+.only-wide-lg { display: none; }
+@media (min-width: 640px) { .only-wide { display: inline; } }
+@media (min-width: 768px) { .only-wide-lg { display: inline; } }
+
+/* ==========================================================================
+   Reading grid
+   ========================================================================== */
+
+.book { display: grid; grid-template-columns: minmax(0, 1fr); max-width: var(--breakout); margin-inline: auto; padding-inline: var(--gutter); }
+.book > * { grid-column: 1; }
+
+.in-measure { width: 100%; max-width: var(--measure); justify-self: center; }
+.masthead   { max-width: var(--measure-wide); }
+
+/* Figures break the measure. Centring is done with a transform rather than the
+   grid so it works for figures nested inside the measure AND for direct grid
+   children — grid-column silently does nothing when nested. */
+.breakout {
+  width: min(var(--breakout), calc(100vw - 3.5rem));
+  margin-left: 50%;
+  transform: translateX(-50%);
+}
+
+/* ==========================================================================
+   Prose
+   ========================================================================== */
+
+.prose-doc { font-size: var(--body-size); line-height: var(--body-lead); color: var(--ink); text-wrap: pretty; }
+.prose-doc > * + * { margin-top: 1.25rem; }
+/* Figures and notes carry their own, larger separation — the generic
+   `> * + *` rule is more specific than their class, so restate it here. */
+.prose-doc > .fig-code,
+.prose-doc > .fig-plain,
+.prose-doc > .fig-chart,
+.prose-doc > .note,
+.prose-doc > figure { margin-top: 2.25rem; }
+/* A subsection heading brings its own space above via padding-top. */
+.prose-doc > .subsection { margin-top: 0; }
+.prose-doc strong { font-weight: 600; }
+.prose-doc ol { padding-left: 1.15rem; }
+.prose-doc ol > li + li { margin-top: 0.5rem; }
+.prose-doc ol > li::marker { color: var(--accent-ink); font-family: var(--font-mono); font-size: 0.85em; }
+
+.code-in { font-family: var(--font-mono); font-size: 0.8125em; }
+.code-in > code {
+  background: var(--accent-tint);
+  padding: 0.12em 0.32em;
+  border-radius: 2px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.code-in.is-risk > code { background: var(--risk-tint); }
+
+/* ==========================================================================
+   Headings & chapter structure
+   ========================================================================== */
+
+.ch-num { font-family: var(--font-mono); font-size: 0.8125rem; font-weight: 500; color: var(--accent-ink); font-variant-numeric: tabular-nums; }
+.h-chapter { font-size: clamp(1.55rem, 3.1vw, 2.1rem); font-weight: 600; line-height: 1.15; letter-spacing: -0.02em; text-wrap: balance; }
+.h-section { font-size: 1.1875rem; font-weight: 600; line-height: 1.3; letter-spacing: -0.012em; }
+.h-sub     { font-size: 1.0625rem; font-weight: 600; line-height: 1.35; letter-spacing: -0.01em; }
+
+.chapter { border-top: 1px solid var(--rule); padding-top: 3rem; margin-top: 3.5rem; }
+@media (min-width: 640px) { .chapter { padding-top: 4rem; margin-top: 4.5rem; } }
+.chapter:first-of-type, #s1.chapter { border-top: 0; padding-top: 0; margin-top: 0; }
+.chapter-head { display: flex; align-items: baseline; gap: 0.875rem; }
+.subsection { padding-top: 3rem; }
+
+/* ==========================================================================
+   Pull quote
+   ========================================================================== */
+
+.pull { position: relative; margin-block: 2.5rem; padding-block: 2rem; border-block: 1px solid var(--rule); text-align: center; }
+.pull > p { max-width: 46ch; margin-inline: auto; font-size: clamp(1.25rem, 2.4vw, 1.6rem); font-weight: 500; line-height: 1.35; letter-spacing: -0.02em; text-wrap: balance; }
+.pull::before { content: ''; position: absolute; top: 0; left: 50%; width: 2.25rem; height: 3px; background: var(--accent); transform: translate(-50%, -50%); }
+
+/* ==========================================================================
+   Notes. A hairline box on tinted stock with a mono label — NOT a coloured
+   border-left thicker than 1px, which is a category default.
+   ========================================================================== */
+
+.note { margin-block: 2rem; border: 1px solid var(--rule); background: color-mix(in oklab, var(--stock) 70%, transparent); padding: 1rem 1.25rem; }
+@media (min-width: 640px) { .note { padding: 1.25rem 1.5rem; } }
+.note-label { font-family: var(--font-mono); font-size: 0.6875rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; color: var(--link-ink); }
+.note-accent { background: var(--accent-tint); border-color: var(--accent-edge); }
+.note-accent .note-label { color: var(--accent-ink); }
+.note-risk { background: var(--risk-tint); border-color: var(--risk-edge); }
+.note-risk .note-label { color: var(--risk); }
+.note-body { font-size: 0.9375rem; line-height: 1.65; color: var(--ink-2); text-wrap: pretty; }
+.note-body strong { color: var(--ink); font-weight: 600; }
+.note-body em { color: var(--ink); }
+.note p + p { margin-top: 0.625rem; }
+
+/* ==========================================================================
+   Lists
+   ========================================================================== */
+
+.bullets { list-style: none; padding: 0; }
+.bullets > li { position: relative; padding-left: 1.25rem; }
+.bullets > li::before { content: ''; position: absolute; left: 0; top: 0.72em; width: 0.625rem; height: 1px; background: var(--accent); }
+
+.num-list { list-style: none; padding: 0; }
+.num-list > li { display: grid; grid-template-columns: 1.75rem minmax(0, 1fr); column-gap: 0.75rem; }
+.num-list .n { font-family: var(--font-mono); font-size: 0.8125rem; font-weight: 500; color: var(--accent-ink); padding-top: 0.28em; font-variant-numeric: tabular-nums; }
+.num-list > li + li { margin-top: 0.75rem; }
+.num-list.is-hairline > li { padding-block: 1.15rem; border-bottom: 1px solid var(--rule-soft); }
+.num-list.is-hairline > li + li { margin-top: 0; }
+.num-list.is-hairline > li:first-child { padding-top: 0.25rem; }
+.num-list.is-hairline > li:last-child { border-bottom: 0; }
+.num-list.is-hairline .body { font-size: 1rem; line-height: 1.65; color: var(--ink-2); }
+.num-list.is-hairline .body strong { color: var(--ink); font-weight: 600; }
+
+.checks { list-style: none; padding: 0; border-top: 1px solid var(--rule-soft); }
+.checks > li { display: flex; gap: 0.875rem; padding-block: 0.875rem; border-bottom: 1px solid var(--rule-soft); }
+.box { flex: none; width: 0.95rem; height: 0.95rem; margin-top: 0.28em; border: 1px solid var(--ink-2); }
+/* a completed item keeps its state: filled box plus a drawn check.
+   Never a unicode glyph — geometry, in the same stroke as everything else. */
+.box.is-done { position: relative; background: var(--ink-2); border-color: var(--ink-2); }
+.box.is-done::after {
+  content: ''; position: absolute; left: 0.3rem; top: 0.09rem;
+  width: 0.22rem; height: 0.44rem;
+  border: solid var(--paper); border-width: 0 1.5px 1.5px 0;
+  transform: rotate(42deg);
+}
+/* visually hidden, still read by assistive tech */
+.sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* ==========================================================================
+   Tables. Hairlines only — no zebra striping, no card, no shadow. Numeric
+   columns are right-aligned with tabular figures via .num on BOTH th and td.
+   ========================================================================== */
+
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.875rem; line-height: 1.5; }
+.tbl th {
+  border-bottom: 1px solid var(--rule-ink);
+  padding: 0 1rem 0.625rem 0;
+  text-align: left; vertical-align: bottom;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--ink-2);
+}
+.tbl td { border-bottom: 1px solid var(--rule-soft); padding: 0.75rem 1rem 0.75rem 0; vertical-align: top; }
+.tbl th:last-child, .tbl td:last-child { padding-right: 0; }
+.tbl .num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.tbl tbody tr:last-child td { border-bottom: 0; }
+.tbl .muted { color: var(--ink-2); }
+.row-key td { font-weight: 500; }
+.row-total td { border-block: 1px solid var(--rule-ink); background: var(--accent-tint); font-weight: 600; }
+.tbl-cap { margin-top: 0.75rem; font-family: var(--font-mono); font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-3); }
+.tbl-scroll { overflow-x: auto; }
+/* A wide table scrolls rather than crushing its columns on a phone. */
+.tbl-scroll > .tbl { min-width: 34rem; }
+
+/* ==========================================================================
+   Code figures. Pasted-in cool stock, the way a figure is pasted into a
+   report. Four syntax hues only.
+   ========================================================================== */
+
+.fig-code { margin-block: 2.25rem; border: 1px solid var(--rule); background: var(--stock); overflow: hidden; }
+.fig-code > figcaption {
+  display: flex; align-items: center; gap: 0.5rem;
+  border-bottom: 1px solid var(--rule);
+  padding: 0.5rem 1.25rem;
+  font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.01em; color: var(--ink-2);
+}
+.fig-code pre { overflow-x: auto; padding: 1rem 1.25rem; margin: 0; }
+.fig-code code { font-family: var(--font-mono); font-size: 0.8125rem; line-height: 1.7; white-space: pre; }
+
+.fig-plain { margin-block: 2rem; border-block: 1px solid var(--rule); padding-block: 1rem; overflow-x: auto; }
+.fig-plain code { font-family: var(--font-mono); font-size: 0.8125rem; line-height: 1.7; white-space: pre; }
+
+.tk { color: var(--link-ink); }
+.ts { color: var(--good); }
+.tn { color: var(--warn); }
+.tc { color: var(--ink-3); }
+.tp { color: var(--ink-2); }
+
+/* ==========================================================================
+   Data figure — horizontal bars, flat, no radius, no shadow
+   ========================================================================== */
+
+.fig-chart { margin-block: 2.25rem; border-block: 1px solid var(--rule); padding-block: 1.5rem; }
+.bar-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 1rem; row-gap: 0.5rem; align-items: baseline; }
+.bar-row + .bar-row { margin-top: 1.25rem; }
+.bar-label { font-size: 0.875rem; color: var(--ink-2); }
+.bar-val { grid-column: 2; grid-row: 1; font-family: var(--font-mono); font-size: 0.8125rem; white-space: nowrap; }
+.bar-val .pct { color: var(--ink-3); }
+.bar-track { grid-column: 1 / -1; grid-row: 2; position: relative; height: 0.625rem; background: var(--rule-soft); }
+.bar-fill { position: absolute; inset-block: 0; left: 0; }
+@media (min-width: 640px) {
+  .bar-row { grid-template-columns: 13rem minmax(0, 1fr) auto; align-items: center; }
+  .bar-val { grid-column: 3; grid-row: 1; }
+  .bar-track { grid-column: 2; grid-row: 1; }
+}
+
+/* ==========================================================================
+   Contents
+   ========================================================================== */
+
+.toc-head { font-family: var(--font-mono); font-size: 0.6875rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-3); }
+.toc-list { list-style: none; padding: 0; }
+.toc-list > li { border-bottom: 1px solid var(--rule-soft); padding-block: 0.875rem; }
+.toc-list > li:last-child { border-bottom: 0; }
+.toc-row { display: flex; align-items: baseline; gap: 0.75rem; }
+.toc-num { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent-ink); font-variant-numeric: tabular-nums; }
+.toc-title { font-weight: 500; letter-spacing: -0.01em; }
+.toc-title:hover, .toc-sub:hover { color: var(--link); }
+.leader { flex: 1 1 1rem; min-width: 1rem; align-self: flex-end; margin-bottom: 0.32em; border-bottom: 1px dotted color-mix(in oklab, var(--ink-3) 50%, transparent); }
+.toc-subs { list-style: none; padding: 0; margin-top: 0.5rem; }
+.toc-subs > li + li { margin-top: 0.25rem; }
+.toc-sub { font-size: 0.8125rem; line-height: 1.45; color: var(--ink-2); }
+
+/* ==========================================================================
+   Running head
+   ========================================================================== */
+
+.rh { position: fixed; inset-inline: 0; top: 0; z-index: 50; background: var(--paper); border-bottom: 1px solid var(--rule); }
+.rh-in { max-width: var(--breakout); margin-inline: auto; height: 3.5rem; padding-inline: var(--gutter); display: flex; align-items: center; gap: 1rem; }
+.rh-mark { display: flex; align-items: center; gap: 0.625rem; font-size: 0.8125rem; font-weight: 500; letter-spacing: -0.01em; }
+.rh-mark:hover { color: var(--link); }
+.rh-sep { width: 1px; height: 1rem; background: var(--rule); flex: none; }
+@media (max-width: 639px) { .rh-sep { display: none; } }
+.rh-now { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8125rem; color: var(--ink-2); }
+.rh-now b { font-weight: 500; }
+.rh-link { font-family: var(--font-mono); font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-2); white-space: nowrap; }
+.rh-link:hover { color: var(--link); }
+
+.thread { height: 3px; width: 100%; background: transparent; }
+/* scaleX, never width: this animates on every scroll frame and must not
+   trigger layout. Set style.transform = 'scaleX(0..1)' from script. */
+.thread > i { display: block; height: 100%; width: 100%; background: var(--accent); transform: scaleX(0); transform-origin: left center; transition: transform 0.15s linear; }
+
+/* ==========================================================================
+   Masthead + colophon
+   ========================================================================== */
+
+/* auto-fit so a two-item fact row packs left instead of leaving a hole */
+.meta-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem 2.5rem; margin-top: 2.5rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); }
+@media (min-width: 640px) { .meta-row { grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); } }
+.meta-row dt { font-family: var(--font-mono); font-size: 0.6875rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-3); }
+.meta-row dd { margin-top: 0.25rem; font-size: 0.9375rem; }
+
+.colophon { margin-top: 5rem; border-top: 1px solid var(--rule-ink); padding-top: 1.5rem; }
+.folio { font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-3); }
+.print-btn { margin-top: 1.5rem; display: inline-flex; align-items: center; gap: 0.5rem; border: 1px solid var(--rule-ink); background: transparent; padding: 0.5rem 1rem; font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink); cursor: pointer; transition: background 0.15s, color 0.15s; }
+.print-btn:hover { background: var(--ink); color: var(--paper); }
+
+/* ==========================================================================
+   Motion & print
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .thread > i { transition: none; }
+}
+
+@media print {
+  .rh { position: static; }
+  .no-print { display: none !important; }
+  body { background: #fff; color: #000; }
+  .in-measure, .breakout { max-width: 100%; }
+  .chapter, .phase, .fig-code, .fig-chart, .fig-plain, .note, .pull, .toc-list > li { break-inside: avoid; }
+  .note, .fig-code, .stock { background: #f7f7f7 !important; }
+}

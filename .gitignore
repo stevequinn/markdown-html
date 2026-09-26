@@ -1,0 +1,16 @@
+# build / test output
+node_modules/
+*.html
+!markdown-html/**/*.html
+
+# the audit script gets copied next to a page to run in the browser
+/audit.js
+
+# skills CLI
+skills-lock.json
+
+# editors & OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
