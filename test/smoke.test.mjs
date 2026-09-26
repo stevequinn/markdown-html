@@ -167,3 +167,27 @@ test('theme never ships a hardcoded webfont', () => {
   assert.ok(!/@import|@font-face|fonts\.googleapis/.test(css), 'theme should not load a font');
   assert.match(css, /--font-sans:\s*ui-sans-serif/, 'expected a system font stack default');
 });
+
+/* ------------------------------- audit ------------------------------- */
+// audit.js needs a real layout engine, so it cannot be executed here. These
+// guard the two things that actually regressed, so a future rewrite that
+// reintroduces them fails loudly.
+
+test('audit measures the first visual line, not chars-per-line-count', () => {
+  const src = readFileSync(AUDIT, 'utf8');
+  assert.ok(!/t\.length\s*\/\s*lines/.test(src), 'regressed to dividing chars by line count');
+  assert.match(src, /firstLineChars/, 'no first-line measurement');
+  assert.match(src, /binary search/i, 'wrap-point search is gone');
+});
+
+test('audit refuses to judge the measure on a thin sample', () => {
+  const src = readFileSync(AUDIT, 'utf8');
+  assert.match(src, /MEASURE_MIN_SAMPLES/, 'no minimum-sample gate');
+  assert.match(src, /measureTrustworthy/, 'measure is not gated on sample count');
+});
+
+test('audit converts any colour format before measuring contrast', () => {
+  const src = readFileSync(AUDIT, 'utf8');
+  assert.match(src, /getImageData/, 'colours are not resolved through a canvas');
+  assert.match(src, /getContext\('2d'/, 'no 2d context for colour resolution');
+});

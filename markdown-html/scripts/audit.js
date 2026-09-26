@@ -94,28 +94,62 @@ window.__bookAudit = function () {
   });
 
   /* ---- 2. characters per line ---------------------------------------- */
+  /* Count the characters on the FIRST visual line of each paragraph.
+     Dividing total characters by line count is wrong: the last line is
+     ragged, so a good 65-character measure over 3 lines reports ~49 and the
+     audit fails a page that is fine. The first line is always full, so it is
+     the unbiased sample. A binary search finds the wrap point in log n calls. */
   var measures = [];
   var paras = document.querySelectorAll('.prose-doc > p, .note-body, .num-list.is-hairline .body');
-  var sampled = 0;
-  Array.prototype.forEach.call(paras, function (p, i) {
-    if (sampled >= 8) return;
-    if (i % 4 !== 0) return;
+  var rg = document.createRange();
+
+  function charTop(node, i) {
+    try {
+      rg.setStart(node, i);
+      rg.setEnd(node, i + 1);
+      var r = rg.getBoundingClientRect();
+      return r.height > 0 ? r.top : null;
+    } catch (e) { return null; }
+  }
+
+  Array.prototype.forEach.call(paras, function (p) {
+    if (measures.length >= 8) return;
     var t = p.textContent.replace(/\s+/g, ' ').trim();
-    if (t.length < 120) return;
-    var cs = getComputedStyle(p);
-    var probe = document.createElement('div');
-    probe.style.cssText = 'position:absolute;left:-99999px;top:0;visibility:hidden';
-    probe.style.font = cs.font || (cs.fontSize + ' ' + cs.fontFamily);
-    probe.style.letterSpacing = cs.letterSpacing;
-    probe.style.lineHeight = cs.lineHeight;
-    probe.style.width = Math.round(p.getBoundingClientRect().width) + 'px';
-    probe.textContent = t;
-    document.body.appendChild(probe);
-    var lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.6;
-    var lines = Math.max(1, Math.round(probe.getBoundingClientRect().height / lh));
-    measures.push({ chars: t.length, lines: lines, perLine: Math.round(t.length / lines), widthPx: Math.round(p.getBoundingClientRect().width), fontSize: cs.fontSize });
-    probe.remove();
-    sampled++;
+    if (t.length < 150) return;               // too short to wrap; no signal
+
+    var tn = null;
+    for (var i = 0; i < p.childNodes.length; i++) {
+      if (p.childNodes[i].nodeType === 3 && p.childNodes[i].textContent.trim()) { tn = p.childNodes[i]; break; }
+    }
+    if (!tn || tn.length < 2) return;
+
+    var top0 = charTop(tn, 0);
+    if (top0 === null) return;
+
+    // exponential probe until we land on a character that has wrapped
+    var found = -1;
+    for (var step = 1; step < tn.length; step *= 2) {
+      var ts = charTop(tn, step);
+      if (ts !== null && ts > top0 + 2) { found = step; break; }
+    }
+    if (found < 0) return;                    // single line: no wrap to measure
+
+    // binary search the exact wrap index
+    var lo = 0, hi = found;
+    while (lo < hi - 1) {
+      var mid = (lo + hi) >> 1;
+      var tm = charTop(tn, mid);
+      if (tm !== null && tm > top0 + 2) hi = mid; else lo = mid;
+    }
+    // `lo` is the last character on the first line. Leading whitespace was
+    // collapsed out of `t` but not out of the node, so clamp sensibly.
+    var perLine = Math.max(1, Math.min(lo, t.length));
+    measures.push({
+      chars: t.length,
+      firstLineChars: perLine,
+      widthPx: Math.round(p.getBoundingClientRect().width),
+      fontSize: getComputedStyle(p).fontSize
+    });
   });
 
   /* ---- 3. horizontal overflow ----------------------------------------- */
@@ -161,21 +195,32 @@ window.__bookAudit = function () {
   });
 
   /* ---- verdict -------------------------------------------------------- */
-  var perLine = measures.length ? measures.map(function (m) { return m.perLine; }) : [];
+  var perLine = measures.map(function (m) { return m.firstLineChars; });
   var avgPerLine = perLine.length ? Math.round(perLine.reduce(function (a, b) { return a + b; }, 0) / perLine.length) : null;
+  // One paragraph is not a corpus. Report the measure, but only fail on it
+  // once enough full lines were sampled to mean anything.
+  var MEASURE_MIN_SAMPLES = 3;
+  var measureTrustworthy = measures.length >= MEASURE_MIN_SAMPLES;
 
   var problems = [];
   if (contrast.length) problems.push(contrast.length + ' contrast failure(s) below WCAG AA');
   if (overflow > 0) problems.push('horizontal overflow of ' + overflow + 'px');
   if (badTransitions.length) problems.push(badTransitions.length + ' layout-animating transition(s)');
   if (misaligned.length) problems.push(misaligned.length + ' misaligned table column(s)');
-  if (avgPerLine !== null && (avgPerLine < 55 || avgPerLine > 85)) problems.push('measure is ' + avgPerLine + ' chars/line, outside the comfortable 60-80 band');
+  if (measureTrustworthy && (avgPerLine < 58 || avgPerLine > 85)) {
+    problems.push('measure is ' + avgPerLine + ' chars/line, outside the comfortable 60-80 band');
+  }
 
   return {
     pass: problems.length === 0,
     problems: problems,
     contrast: contrast,
-    measure: { samples: measures, avgCharsPerLine: avgPerLine },
+    measure: {
+      samples: measures,
+      avgCharsPerLine: avgPerLine,
+      trustworthy: measureTrustworthy,
+      note: measureTrustworthy ? null : 'only ' + measures.length + ' full line(s) sampled; measure not judged'
+    },
     overflowPx: overflow,
     overflowOffenders: offenders,
     layoutTransitions: badTransitions,
@@ -189,7 +234,7 @@ window.__bookAuditReport = function () {
   var lines = [];
   lines.push(r.pass ? 'PASS' : 'FAIL — ' + r.problems.join('; '));
   lines.push('measure: ' + (r.measure.avgCharsPerLine === null ? 'n/a' : r.measure.avgCharsPerLine + ' chars/line') +
-    ' across ' + r.measure.samples.length + ' sample(s)');
+    ' across ' + r.measure.samples.length + ' full line(s)' + (r.measure.trustworthy ? '' : ' — too few to judge'));
   lines.push('overflow: ' + r.overflowPx + 'px');
   if (r.contrast.length) { lines.push(''); lines.push('CONTRAST:'); r.contrast.forEach(function (c) { lines.push('  ' + c.ratio + ':1 (need ' + c.need + ') ' + c.size + ' ' + c.color + '  .' + c.sel + '  "' + c.text + '"'); }); }
   if (r.layoutTransitions.length) { lines.push(''); lines.push('LAYOUT TRANSITIONS (use transform):'); r.layoutTransitions.forEach(function (t) { lines.push('  ' + t.prop + '  .' + t.sel); }); }
